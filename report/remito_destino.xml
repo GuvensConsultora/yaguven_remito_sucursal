@@ -11,7 +11,7 @@
                 <field name="yaguven_partner_destino_id"
                        string="Sucursal destino"
                        readonly="1"
-                       invisible="picking_type_code != 'internal'"/>
+                       invisible="not yaguven_partner_destino_id"/>
             </xpath>
         </field>
     </record>
