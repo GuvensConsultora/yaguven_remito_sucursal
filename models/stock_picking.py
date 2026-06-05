@@ -21,14 +21,14 @@ class StockPicking(models.Model):
         self.ensure_one()
         if self.picking_type_code != 'internal' or self.location_dest_id.usage != 'transit':
             return self.env['res.partner']
-        Wh = self.env['stock.warehouse']
+        WhSudo = self.env['stock.warehouse'].sudo()
         for move in self.move_ids:
             for dest_move in move.move_dest_ids:
                 loc = dest_move.location_dest_id
-                wh = Wh.search([('lot_stock_id', '=', loc.id)], limit=1)
+                wh = WhSudo.search([('lot_stock_id', '=', loc.id)], limit=1)
                 if not wh:
                     pids = [int(x) for x in (loc.parent_path or '').strip('/').split('/') if x]
-                    wh = Wh.search([('view_location_id', 'in', pids)], limit=1)
+                    wh = WhSudo.search([('view_location_id', 'in', pids)], limit=1)
                 if wh and wh.partner_id:
                     return wh.partner_id
         # fallback: partner_address_id cargado en la regla por pieza2d
