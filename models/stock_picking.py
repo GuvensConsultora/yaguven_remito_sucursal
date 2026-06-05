@@ -26,7 +26,8 @@ class StockPicking(models.Model):
         # Busca moves directo en DB (evita caché ORM stale en el compute)
         moves = MoveSudo.search([('picking_id', '=', self.id), ('state', '!=', 'cancel')])
         for move in moves:
-            dest_moves = MoveSudo.search([('id', 'in', move.move_dest_ids.ids)])
+            # Busca dest_moves por relación inversa para evitar caché ORM en move_dest_ids
+            dest_moves = MoveSudo.search([('move_orig_ids', 'in', [move.id]), ('state', '!=', 'cancel')])
             for dest_move in dest_moves:
                 loc = dest_move.location_dest_id
                 wh = WhSudo.search([('lot_stock_id', '=', loc.id)], limit=1)
