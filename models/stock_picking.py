@@ -10,16 +10,14 @@ class StockPicking(models.Model):
         compute='_compute_yaguven_partner_destino',
     )
 
-    @api.depends('move_ids', 'picking_type_code', 'location_dest_id')
+    @api.depends('move_ids', 'location_dest_id')
     def _compute_yaguven_partner_destino(self):
         for picking in self:
             picking.yaguven_partner_destino_id = picking._yaguven_resolve_partner()
 
     def _yaguven_resolve_partner(self):
-        """Return the destination branch partner for an OUT-to-transit internal picking."""
+        """Return the destination branch partner for any picking whose dest is a transit location."""
         self.ensure_one()
-        if self.picking_type_code != 'internal':
-            return self.env['res.partner']
         loc_dest = self.location_dest_id
         if not loc_dest or loc_dest.usage != 'transit':
             return self.env['res.partner']
@@ -59,8 +57,6 @@ class StockPicking(models.Model):
     def action_confirm(self):
         res = super().action_confirm()
         for picking in self:
-            if picking.picking_type_code != 'internal':
-                continue
             if not picking.location_dest_id or picking.location_dest_id.usage != 'transit':
                 continue
             partner = picking._yaguven_resolve_partner()
