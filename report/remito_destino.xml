@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+
+    <!-- Ficha del picking: muestra sucursal destino en traslados OUT -->
+    <record id="view_picking_form_yaguven_destino" model="ir.ui.view">
+        <field name="name">stock.picking.form.yaguven.destino</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock.view_picking_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="yaguven_partner_destino_id"
+                       string="Sucursal destino"
+                       readonly="1"
+                       invisible="picking_type_code != 'internal'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Remito AR: reemplaza partner_id con la sucursal destino en traslados OUT -->
+    <template id="report_delivery_document_yaguven" inherit_id="l10n_ar_stock.report_delivery_document">
+        <xpath expr="//div[@id='informations']" position="replace">
+            <t t-set="eff" t-value="o.yaguven_partner_destino_id or o.partner_id"/>
+            <div id="informations">
+                <t><strong>Customer: </strong></t>
+                <span t-out="eff.commercial_partner_id.name or eff.name"/>
+                <br/>
+                <t t-if="eff.street"><t t-out="eff.street"/><br/></t>
+                <t t-if="eff.street2"><t t-out="eff.street2"/><br/></t>
+                <t t-if="eff.city">
+                    <t t-out="eff.city"/>
+                    <t t-if="eff.state_id">, <t t-out="eff.state_id.name"/></t>
+                    <t t-if="eff.zip">, <t t-out="eff.zip"/></t>
+                    <br/>
+                </t>
+                <strong>VAT Cond: </strong>
+                <span t-out="eff.l10n_ar_afip_responsibility_type_id.name or ''"/>
+                <t t-if="eff.vat
+                          and eff.l10n_latam_identification_type_id
+                          and eff.l10n_latam_identification_type_id.l10n_ar_afip_code != '99'">
+                    <br/>
+                    <strong>
+                        <t t-out="eff.l10n_latam_identification_type_id.name
+                                  or o.company_id.account_fiscal_country_id.vat_label"
+                           id="inv_tax_id_label"/>:
+                    </strong>
+                    <span t-if="eff.l10n_ar_vat" t-out="eff.l10n_ar_formatted_vat"/>
+                    <span t-else="" t-out="eff.vat"/>
+                </t>
+            </div>
+        </xpath>
+    </template>
+
+</odoo>
