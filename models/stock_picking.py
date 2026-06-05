@@ -22,8 +22,12 @@ class StockPicking(models.Model):
         if self.picking_type_code != 'internal' or self.location_dest_id.usage != 'transit':
             return self.env['res.partner']
         WhSudo = self.env['stock.warehouse'].sudo()
-        for move in self.move_ids:
-            for dest_move in move.move_dest_ids:
+        MoveSudo = self.env['stock.move'].sudo()
+        # Busca moves directo en DB (evita caché ORM stale en el compute)
+        moves = MoveSudo.search([('picking_id', '=', self.id), ('state', '!=', 'cancel')])
+        for move in moves:
+            dest_moves = MoveSudo.search([('id', 'in', move.move_dest_ids.ids)])
+            for dest_move in dest_moves:
                 loc = dest_move.location_dest_id
                 wh = WhSudo.search([('lot_stock_id', '=', loc.id)], limit=1)
                 if not wh:
@@ -32,7 +36,7 @@ class StockPicking(models.Model):
                 if wh and wh.partner_id:
                     return wh.partner_id
         # fallback: partner_address_id cargado en la regla por pieza2d
-        for move in self.move_ids:
+        for move in moves:
             if move.rule_id and move.rule_id.partner_address_id:
                 return move.rule_id.partner_address_id
         return self.env['res.partner']
