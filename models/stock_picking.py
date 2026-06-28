@@ -16,18 +16,34 @@ class StockPicking(models.Model):
             picking.yaguven_partner_destino_id = picking._yaguven_resolve_partner()
 
     def _yaguven_resolve_partner(self):
-        """Sucursal destino de un picking cuyo destino es una ubicación de tránsito.
+        """Sucursal destino del picking de reparto/reabastecimiento entre almacenes.
 
-        Resuelve por la UBICACIÓN DE TRÁNSITO (no por la cadena de moves, que en
-        O19 puede venir vacía): tránsito -> regla IN (src=tránsito) -> depósito de
-        la sucursal -> almacén -> partner. Robusto e independiente del estado.
+        Cubre las dos topologías de reabastecimiento:
+        - 1 PASO (sin tránsito): destino = Existencias de un almacén sucursal y origen =
+          Existencias de OTRO almacén -> partner del almacén destino. Scope estricto
+          (ambos extremos = Existencias de almacén, distintos) para NO tocar recepciones
+          de proveedor, entregas a cliente ni movimientos intra-almacén.
+        - 2 PASOS (con tránsito): destino = ubicación de tránsito -> regla IN (src=tránsito)
+          -> depósito de la sucursal -> almacén -> partner. Independiente de la cadena de
+          moves (en O19 puede venir vacía).
         """
         self.ensure_one()
         loc_dest = self.location_dest_id
-        if not loc_dest or loc_dest.usage != 'transit':
+        if not loc_dest:
+            return self.env['res.partner']
+        Wh = self.env['stock.warehouse'].sudo()
+        # --- caso 1 PASO: reparto inter-almacén Existencias -> Existencias ---
+        if loc_dest.usage == 'internal':
+            wh_dest = Wh.search([('lot_stock_id', '=', loc_dest.id)], limit=1)
+            wh_src = Wh.search([('lot_stock_id', '=', self.location_id.id)], limit=1) \
+                if self.location_id else Wh.browse()
+            if wh_dest and wh_src and wh_src.id != wh_dest.id and wh_dest.partner_id:
+                return wh_dest.partner_id
+            return self.env['res.partner']
+        # --- caso 2 PASOS: destino tránsito ---
+        if loc_dest.usage != 'transit':
             return self.env['res.partner']
         Rule = self.env['stock.rule'].sudo()
-        Wh = self.env['stock.warehouse'].sudo()
         Loc = self.env['stock.location'].sudo()
         # regla IN: location_src_id = este tránsito -> location_dest_id = depósito sucursal
         in_rules = Rule.search_read(
@@ -55,11 +71,10 @@ class StockPicking(models.Model):
         return self.env['res.partner']
 
     def _yaguven_set_branch_partner(self):
-        """Setea partner_id = sucursal destino en los pickings hacia tránsito (idempotente)."""
+        """Setea partner_id = sucursal destino en los pickings de reparto/reabastecimiento
+        (idempotente). El gating lo hace _yaguven_resolve_partner: solo devuelve partner para
+        reparto inter-almacén (1 paso) o destino tránsito (2 pasos); vacío en el resto."""
         for picking in self:
-            dest = picking.location_dest_id
-            if not dest or dest.usage != 'transit':
-                continue
             partner = picking._yaguven_resolve_partner()
             if partner and picking.partner_id.id != partner.id:
                 picking.write({'partner_id': partner.id})

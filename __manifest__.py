@@ -1,6 +1,6 @@
 {
     'name': 'Yagüven - Remito Sucursal Destino',
-    'version': '19.0.1.0.6',
+    'version': '19.0.1.0.7',
     'summary': 'Corrige partner_id en pickings OUT de traslado: muestra sucursal destino en ficha y remito.',
     'description': 'Setea la sucursal destino en pickings hacia tránsito tanto en confirmación manual '
                    '(action_confirm) como en el flujo automático de reabastecimiento (stock.move._action_confirm), '
